@@ -17,13 +17,13 @@ import javax.swing.JOptionPane;
 
 public class formm extends javax.swing.JFrame {
 
-    private JTextPane textArea; // Cambiado a JTextPane para permitir estilos
+    private JTextPane textArea; 
     private JTextArea lineNumberArea;
     private JLabel positionLabel;
     private JButton analyzeButton;
     private JButton graphButton;
     private JButton reportButton;
-    private JButton highlightButton; // Nuevo botón de Resaltar
+    private JButton highlightButton; 
     private JScrollPane scrollPane;
 
     public formm() {
@@ -139,42 +139,42 @@ private void parseCreateDatabase(String line) throws Exception {
     if (!line.matches("CREATE DATABASE [a-zA-Z_][a-zA-Z0-9_]*;")) {
         throw new Exception("Sintaxis incorrecta para creación de base de datos.");
     }
-    // Aquí puedes implementar la lógica para crear la base de datos.
+    
 }
 
 private void parseCreateTable(String line) throws Exception {
     if (!line.matches("CREATE TABLE [a-zA-Z_][a-zA-Z0-9_]* \\(.*\\);")) {
         throw new Exception("Sintaxis incorrecta para creación de tabla.");
     }
-    // Aquí puedes implementar la lógica para crear la tabla.
+    
 }
 
 private void parseInsert(String line) throws Exception {
     if (!line.matches("INSERT INTO [a-zA-Z_][a-zA-Z0-9_]* \\(.*\\) VALUES \\(.*\\);")) {
         throw new Exception("Sintaxis incorrecta para inserción.");
     }
-    // Aquí puedes implementar la lógica para insertar datos.
+    
 }
 
 private void parseSelect(String line) throws Exception {
     if (!line.matches("SELECT (\\*|[a-zA-Z_][a-zA-Z0-9_]*(,\\s*[a-zA-Z_][a-zA-Z0-9_]*)*) FROM [a-zA-Z_][a-zA-Z0-9_]*( WHERE .*|);")) {
         throw new Exception("Sintaxis incorrecta para selección.");
     }
-    // Aquí puedes implementar la lógica para seleccionar datos.
+    
 }
 
 private void parseUpdate(String line) throws Exception {
     if (!line.matches("UPDATE [a-zA-Z_][a-zA-Z0-9_]* SET [a-zA-Z_][a-zA-Z0-9_]* = .*;")) {
         throw new Exception("Sintaxis incorrecta para actualización.");
     }
-    // Aquí puedes implementar la lógica para actualizar datos.
+   
 }
 
 private void parseDelete(String line) throws Exception {
     if (!line.matches("DELETE FROM [a-zA-Z_][a-zA-Z0-9_]*;")) {
         throw new Exception("Sintaxis incorrecta para eliminación.");
     }
-    // Aquí puedes implementar la lógica para eliminar datos.
+    
 }
 
 
@@ -187,18 +187,18 @@ private void parseDelete(String line) throws Exception {
        String text = textArea.getText();
     JOptionPane.showMessageDialog(this, "Generando reportes SQL...");
     
-    // Analizar léxicamente el texto para generar tokens
+    
     List<Token> lexicalTokens = analyzeLexical(text);
     List<Token> syntaxTokens = analyzeSyntax(text);
     List<Token> tablesFound = findTables(text);
     List<Token> modifiedTables = findModifiedTables(text);
     Map<String, Integer> operationCount = countOperations(text);
 
-    // Crear el archivo HTML
+    
     try (FileWriter writer = new FileWriter("C:\\Users\\LL829\\Desktop\\PRUEBAHTML\\reporteSQL.html")) {
         writer.write("<html><body>");
 
-        // Reporte Léxico
+        
         writer.write("<h2>Reporte Léxico</h2>");
         writer.write("<table border='1'><tr><th>Token</th><th>Línea</th><th>Columna</th><th>Descripción</th></tr>");
         for (Token token : lexicalTokens) {
@@ -206,7 +206,7 @@ private void parseDelete(String line) throws Exception {
         }
         writer.write("</table><br>");
 
-        // Reporte Sintáctico
+        
         writer.write("<h2>Reporte Sintáctico</h2>");
         writer.write("<table border='1'><tr><th>Token</th><th>Tipo Token</th><th>Línea</th><th>Columna</th><th>Descripción</th></tr>");
         for (Token token : syntaxTokens) {
@@ -214,7 +214,7 @@ private void parseDelete(String line) throws Exception {
         }
         writer.write("</table><br>");
 
-        // Tablas Encontradas
+        
         writer.write("<h2>Tablas Encontradas</h2>");
         writer.write("<table border='1'><tr><th>Nombre Tabla</th><th>Línea</th><th>Columna</th></tr>");
         for (Token token : tablesFound) {
@@ -222,7 +222,7 @@ private void parseDelete(String line) throws Exception {
         }
         writer.write("</table><br>");
 
-        // Tablas Modificadas y Tipo de Modificación
+        
         writer.write("<h2>Tablas Modificadas y Tipo de Modificación</h2>");
         writer.write("<table border='1'><tr><th>Nombre Tabla</th><th>Tipo Modificación</th><th>Línea</th><th>Columna</th></tr>");
         for (Token token : modifiedTables) {
@@ -230,7 +230,7 @@ private void parseDelete(String line) throws Exception {
         }
         writer.write("</table><br>");
 
-        // Número de Operaciones por Sección
+        
         writer.write("<h2>Número de Operaciones por Sección</h2>");
         writer.write("<table border='1'><tr><th>Operación</th><th>Count</th></tr>");
         for (Map.Entry<String, Integer> entry : operationCount.entrySet()) {

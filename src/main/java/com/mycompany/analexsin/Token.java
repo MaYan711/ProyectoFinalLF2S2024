@@ -6,6 +6,8 @@ public class Token {
     private int line;
     private int column;
     private String description; // Nueva propiedad para descripción del token
+    
+    
 
     public Token(String type, String value, int line, int column, String description) {
         this.type = type;
@@ -13,7 +15,9 @@ public class Token {
         this.line = line;
         this.column = column;
         this.description = description;
+        
     }
+    
 
     Token(String tipo, String yytext, int fila, int columna) {
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
@@ -43,4 +47,14 @@ public class Token {
     public void setDescription(String description) {
         this.description = description;
     }
+    
+    public String toString() {
+        return "Token{" +
+                "type='" + type + '\'' +
+                ", value='" + value + '\'' +
+                ", line=" + line +
+                ", column=" + column +
+                '}';
+    }
+    
 }
