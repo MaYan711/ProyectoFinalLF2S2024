@@ -18,9 +18,16 @@ import java.util.regex.Pattern;
 import javax.swing.JOptionPane;
 import javax.swing.event.DocumentListener;
 
-import guru.nidi.graphviz.engine.Graphviz;
-import guru.nidi.graphviz.model.Graph;
-import guru.nidi.graphviz.model.Factory;
+
+
+//import guru.nidi.graphviz.engine.Graphviz;
+//import guru.nidi.graphviz.model.Graph;
+//import guru.nidi.graphviz.model.Factory;
+import java.awt.image.BufferedImage;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.Iterator;
+import javax.imageio.ImageIO;
 
 
 public class formm extends javax.swing.JFrame {
@@ -440,17 +447,85 @@ private void parseDelete(String line) throws Exception {
 
 
     private void graphSQL() {
-        String text = textArea.getText();
-        JOptionPane.showMessageDialog(this, "Graficando SQL...");
+    String text = textArea.getText();
+    JOptionPane.showMessageDialog(this, "Graficando SQL...");
+    String dotSource = generateDotForDDL(text);
+    generateGraphImage(dotSource);
+}
+
+    
+    private String generateDotForDDL(String sqlText) {
+    StringBuilder dotBuilder = new StringBuilder();
+    dotBuilder.append("digraph DDL {\n");
+    dotBuilder.append("  node [shape=box];\n\n");
+    
+    if (sqlText.contains("CREATE TABLE salarios")) {
+        dotBuilder.append("  salarios [\n");
+        dotBuilder.append("    label=\"salarios\\n\\nid : serial PK\\nnombre : VARCHAR(100)\\npuesto : VARCHAR(50)\\nsalario : DECIMAL(10, 2)\\nfecha_contratacion : DATE\\ndepartamento_id : INTEGER FK\\nemail : VARCHAR(100) UNIQUE\"\n");
+        dotBuilder.append("  ];\n\n");
+    }
+    if (sqlText.contains("CREATE TABLE departamentos")) {
+        dotBuilder.append("  departamentos [\n");
+        dotBuilder.append("    label=\"departamentos\\n\\nid : serial PK\\nnombre : VARCHAR(100)\\ncategoria : VARCHAR(50)\"\n");
+        dotBuilder.append("  ];\n\n");
+    }
+    if (sqlText.contains("ALTER TABLE empleados ADD COLUMN fecha_nacimiento")) {
+        dotBuilder.append("  add_column [label=\"Alter Table empleados\\n\\nadd Column\\nfecha_nacimiento : DATE\", shape=plaintext];\n");
+    }
+    if (sqlText.contains("ALTER TABLE empleados ALTER COLUMN salario")) {
+        dotBuilder.append("  alter_salary [label=\"Alter Column\\nsalario : DECIMAL(12, 2)\", shape=plaintext];\n");
+    }
+    if (sqlText.contains("DROP TABLE empleados")) {
+        dotBuilder.append("  drop_table [label=\"Drop Table empleados\\n\\ncascade\", shape=plaintext];\n");
     }
 
+    dotBuilder.append("}\n");
+    return dotBuilder.toString();
+}
+    
+    private void generateGraphImage(String dotSource) {
+    try {
+        
+        String dotFilePath = "C:\\ruta\\a\\grafo.dot";
+        String outputFilePath = "C:\\ruta\\a\\grafo.png";
+
+        
+        Files.write(Paths.get(dotFilePath), dotSource.getBytes());
+
+       
+        ProcessBuilder processBuilder = new ProcessBuilder("dot", "-Tpng", dotFilePath, "-o", outputFilePath);
+        processBuilder.start().waitFor();
+
+      
+        displayGraphImage(outputFilePath);
+    } catch (IOException | InterruptedException e) {
+        e.printStackTrace();
+    }
+}
+    
+    private void displayGraphImage(String imagePath) {
+    try {
+        BufferedImage img = ImageIO.read(new File(imagePath));
+        JLabel picLabel = new JLabel(new ImageIcon(img));
+        
+        // Crear un JFrame para mostrar la imagen
+        JFrame frame = new JFrame("Gráfico DDL");
+        frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        frame.getContentPane().add(new JScrollPane(picLabel));
+        frame.pack();
+        frame.setLocationRelativeTo(this);
+        frame.setVisible(true);
+    } catch (IOException e) {
+        e.printStackTrace();
+    }
+}
     private void reportSQL() {
        String text = textArea.getText();
     JOptionPane.showMessageDialog(this, "Generando reportes SQL...");
     
     
     List<Token> lexicalTokens = analyzeLexical(text);
-    List<Token> syntaxTokens = analyzeSyntax(text);
+    List<Token> syntaxTokens = analyzeSyntax(lexicalTokens);
     List<Token> tablesFound = findTables(text);
     List<Token> modifiedTables = findModifiedTables(text);
     Map<String, Integer> operationCount = countOperations(text);
@@ -464,7 +539,7 @@ private void parseDelete(String line) throws Exception {
         writer.write("<table border='1'><tr><th>Token</th><th>Línea</th><th>Columna</th><th>Descripción</th></tr>");
         for (Token token : lexicalTokens) {
             writer.write("<tr><td>" + token.getValue() + "</td><td>" + token.getLine() + "</td><td>" + token.getColumn() + "</td><td>" + token.getDescription() + "</td></tr>");
-        }
+        }   
         writer.write("</table><br>");
 
         
@@ -508,74 +583,236 @@ private void parseDelete(String line) throws Exception {
     private List<Token> findTables(String text) {
     List<Token> tables = new ArrayList<>();
     Pattern pattern = Pattern.compile("\\bFROM\\s+(\\w+)|\\bJOIN\\s+(\\w+)|\\bINTO\\s+(\\w+)|\\bTABLE\\s+(\\w+)", Pattern.CASE_INSENSITIVE);
-    Matcher matcher = pattern.matcher(text);
-
     String[] lines = text.split("\n");
+
     for (int i = 0; i < lines.length; i++) {
         String line = lines[i];
-        matcher = pattern.matcher(line);
+        Matcher matcher = pattern.matcher(line);
+
         while (matcher.find()) {
-            String tableName = matcher.group(1) != null ? matcher.group(1) : matcher.group(2) != null ? matcher.group(2) : matcher.group(3);
-            tables.add(new Token("Tabla", tableName, i + 1, matcher.start() + 1, "Tabla encontrada"));
+            String tableName = null;
+
+            // Verifica cada grupo para ver cuál contiene el nombre de la tabla
+            if (matcher.group(1) != null) {
+                tableName = matcher.group(1); // FROM
+            } else if (matcher.group(2) != null) {
+                tableName = matcher.group(2); // JOIN
+            } else if (matcher.group(3) != null) {
+                tableName = matcher.group(3); // INTO
+            } else if (matcher.group(4) != null) {
+                tableName = matcher.group(4); // TABLE
+            }
+
+            // Si se ha encontrado un nombre de tabla, se agrega a la lista de tokens
+            if (tableName != null) {
+                tables.add(new Token("Tabla", tableName, i + 1, matcher.start() + 1, "Tabla encontrada"));
+            }
         }
     }
+
     return tables;
 }
+    
+    
 private List<Token> findModifiedTables(String text) {
     List<Token> modifiedTables = new ArrayList<>();
-    Pattern pattern = Pattern.compile("\\b(UPDATE|DELETE|ALTER|INSERT INTO)\\s+(\\w+)", Pattern.CASE_INSENSITIVE);
-    Matcher matcher = pattern.matcher(text);
-
+    Pattern pattern = Pattern.compile("\\b(UPDATE|DELETE FROM|ALTER TABLE|INSERT INTO)\\s+(\\w+)", Pattern.CASE_INSENSITIVE);
     String[] lines = text.split("\n");
+
     for (int i = 0; i < lines.length; i++) {
         String line = lines[i];
-        matcher = pattern.matcher(line);
+        Matcher matcher = pattern.matcher(line);
+
         while (matcher.find()) {
             String operation = matcher.group(1);
             String tableName = matcher.group(2);
-            modifiedTables.add(new Token(operation, tableName, i + 1, matcher.start() + 1, "Tabla modificada"));
+
+            // Asegura que ambos valores se han capturado correctamente
+            if (operation != null && tableName != null) {
+                modifiedTables.add(new Token(operation, tableName, i + 1, matcher.start() + 1, "Tabla modificada"));
+            }
         }
     }
+
     return modifiedTables;
 }
+
+
 private Map<String, Integer> countOperations(String text) {
     Map<String, Integer> operationCount = new HashMap<>();
     String[] operations = {"CREATE", "DELETE", "UPDATE", "SELECT", "ALTER"};
     
     for (String op : operations) {
+        operationCount.put(op, 0);
+    }
+
+    for (String op : operations) {
         Pattern pattern = Pattern.compile("\\b" + op + "\\b", Pattern.CASE_INSENSITIVE);
         Matcher matcher = pattern.matcher(text);
+        
         int count = 0;
         while (matcher.find()) {
             count++;
         }
-        operationCount.put(op, count);
+
+        if (count > 0) {
+            operationCount.put(op, count);
+        }
     }
     
     return operationCount;
 }
-
     
     private List<Token> analyzeLexical(String text) {
-    // Implementa aquí tu análisis léxico.
-    // Debe devolver una lista de tokens con posibles errores léxicos.
     List<Token> tokens = new ArrayList<>();
+    String[] lines = text.split("\n");
+
     
-    // Ejemplo de token léxico no reconocido
-    tokens.add(new Token("Desconocido", "<>", 1, 3, "Token no reconocido"));
-    
+    Pattern keywordPattern = Pattern.compile("\\b(CREATE|TABLE|DATABASE|INSERT|INTO|VALUES|SELECT|FROM|WHERE|UPDATE|DELETE|ALTER|ADD|COLUMN|DROP|PRIMARY|KEY|UNIQUE|NOT NULL|CONSTRAINT|FOREIGN|REFERENCES)\\b", Pattern.CASE_INSENSITIVE);
+    Pattern identifierPattern = Pattern.compile("\\b[a-zA-Z_][a-zA-Z0-9_]*\\b");
+    Pattern numberPattern = Pattern.compile("\\b\\d+\\b");
+    Pattern operatorPattern = Pattern.compile("[<>!=]=?|[+\\-*/]");
+    Pattern punctuationPattern = Pattern.compile("[,;()]");
+
+    for (int lineNum = 0; lineNum < lines.length; lineNum++) {
+        String line = lines[lineNum];
+        int columnNum = 0;
+
+        
+        Matcher matcher = Pattern.compile("\\S+").matcher(line); // Divide por tokens (por espacios)
+        while (matcher.find()) {
+            String tokenValue = matcher.group();
+            columnNum = matcher.start() + 1;
+
+            
+            if (keywordPattern.matcher(tokenValue).matches()) {
+                tokens.add(new Token("Keyword", tokenValue, lineNum + 1, columnNum, "Palabra clave de SQL"));
+            } else if (identifierPattern.matcher(tokenValue).matches()) {
+                tokens.add(new Token("Identifier", tokenValue, lineNum + 1, columnNum, "Identificador"));
+            } else if (numberPattern.matcher(tokenValue).matches()) {
+                tokens.add(new Token("Number", tokenValue, lineNum + 1, columnNum, "Número entero"));
+            } else if (operatorPattern.matcher(tokenValue).matches()) {
+                tokens.add(new Token("Operator", tokenValue, lineNum + 1, columnNum, "Operador"));
+            } else if (punctuationPattern.matcher(tokenValue).matches()) {
+                tokens.add(new Token("Punctuation", tokenValue, lineNum + 1, columnNum, "Puntuación"));
+            } else {
+                
+                tokens.add(new Token("Unknown", tokenValue, lineNum + 1, columnNum, "Token no reconocido"));
+            }
+        }
+    }
+
     return tokens;
 }
 
-private List<Token> analyzeSyntax(String text) {
-    // Implementa aquí tu análisis sintáctico.
-    // Debe devolver una lista de tokens con posibles errores sintácticos.
-    List<Token> tokens = new ArrayList<>();
+private List<Token> analyzeSyntax(List<Token> lexicalTokens) {
+    List<Token> errors = new ArrayList<>();
+    Iterator<Token> iterator = lexicalTokens.iterator();
     
-    // Ejemplo de error sintáctico
-    tokens.add(new Token("Identificador", "nombre", 4, 5, "Secuencia de token inválida"));
+    while (iterator.hasNext()) {
+        Token token = iterator.next();
+
+        if (token.getValue().equalsIgnoreCase("CREATE")) {
+            if (iterator.hasNext() && iterator.next().getValue().equalsIgnoreCase("DATABASE")) {
+                if (iterator.hasNext()) {
+                    Token dbName = iterator.next();
+                    if (!dbName.getType().equals("Identificador")) {
+                        errors.add(new Token("Error Sintáctico", dbName.getValue(), dbName.getLine(), dbName.getColumn(),
+                                "Se esperaba un identificador después de 'CREATE DATABASE'"));
+                    }
+                    if (iterator.hasNext()) {
+                        Token semicolon = iterator.next();
+                        if (!semicolon.getValue().equals(";")) {
+                            errors.add(new Token("Error Sintáctico", semicolon.getValue(), semicolon.getLine(), semicolon.getColumn(),
+                                    "Se esperaba ';' al final de la instrucción 'CREATE DATABASE'"));
+                        }
+                    } else {
+                        errors.add(new Token("Error Sintáctico", dbName.getValue(), dbName.getLine(), dbName.getColumn(),
+                                "Falta ';' al final de la instrucción"));
+                    }
+                } else {
+                    errors.add(new Token("Error Sintáctico", token.getValue(), token.getLine(), token.getColumn(),
+                            "Falta el nombre de la base de datos después de 'CREATE DATABASE'"));
+                }
+            } else {
+                errors.add(new Token("Error Sintáctico", token.getValue(), token.getLine(), token.getColumn(),
+                        "Instrucción incompleta: se esperaba 'DATABASE' después de 'CREATE'"));
+            }
+        }
+
+        if (token.getValue().equalsIgnoreCase("CREATE")) {
+            if (iterator.hasNext() && iterator.next().getValue().equalsIgnoreCase("TABLE")) {
+                if (iterator.hasNext()) {
+                    Token tableName = iterator.next();
+                    if (!tableName.getType().equals("Identificador")) {
+                        errors.add(new Token("Error Sintáctico", tableName.getValue(), tableName.getLine(), tableName.getColumn(),
+                                "Se esperaba un identificador después de 'CREATE TABLE'"));
+                    }
+                    if (iterator.hasNext() && iterator.next().getValue().equals("(")) {
+                        while (iterator.hasNext()) {
+                            Token columnName = iterator.next();
+                            if (!columnName.getType().equals("Identificador")) {
+                                errors.add(new Token("Error Sintáctico", columnName.getValue(), columnName.getLine(), columnName.getColumn(),
+                                        "Se esperaba un identificador para el nombre de la columna"));
+                                break;
+                            }
+                            if (iterator.hasNext()) {
+                                Token dataType = iterator.next();
+                                if (!dataType.getType().equals("Tipo de Dato")) {
+                                    errors.add(new Token("Error Sintáctico", dataType.getValue(), dataType.getLine(), dataType.getColumn(),
+                                            "Se esperaba un tipo de dato después del nombre de la columna"));
+                                    break;
+                                }
+                            } else {
+                                errors.add(new Token("Error Sintáctico", columnName.getValue(), columnName.getLine(), columnName.getColumn(),
+                                        "Instrucción incompleta: falta el tipo de dato para la columna"));
+                                break;
+                            }
+                            if (iterator.hasNext()) {
+                                Token nextToken = iterator.next();
+                                if (nextToken.getValue().equalsIgnoreCase("PRIMARY")) {
+                                    if (iterator.hasNext() && iterator.next().getValue().equalsIgnoreCase("KEY")) {
+                                        continue;
+                                    } else {
+                                        errors.add(new Token("Error Sintáctico", nextToken.getValue(), nextToken.getLine(), nextToken.getColumn(),
+                                                "Instrucción incompleta: falta 'KEY' después de 'PRIMARY'"));
+                                    }
+                                } else if (nextToken.getValue().equalsIgnoreCase("NOT")) {
+                                    if (iterator.hasNext() && iterator.next().getValue().equalsIgnoreCase("NULL")) {
+                                        continue;
+                                    } else {
+                                        errors.add(new Token("Error Sintáctico", nextToken.getValue(), nextToken.getLine(), nextToken.getColumn(),
+                                                "Instrucción incompleta: falta 'NULL' después de 'NOT'"));
+                                    }
+                                } else if (nextToken.getValue().equalsIgnoreCase("UNIQUE")) {
+                                    continue;
+                                } else if (nextToken.getValue().equals(",")) {
+                                    continue;
+                                } else if (nextToken.getValue().equals(")")) {
+                                    break;
+                                } else {
+                                    errors.add(new Token("Error Sintáctico", nextToken.getValue(), nextToken.getLine(), nextToken.getColumn(),
+                                            "Token inesperado: " + nextToken.getValue()));
+                                    break;
+                                }
+                            } else {
+                                errors.add(new Token("Error Sintáctico", columnName.getValue(), columnName.getLine(), columnName.getColumn(),
+                                        "Instrucción incompleta: falta cierre de paréntesis en declaración de columnas"));
+                                break;
+                            }
+                        }
+                    } else {
+                        errors.add(new Token("Error Sintáctico", tableName.getValue(), tableName.getLine(), tableName.getColumn(),
+                                "Falta '(' después de 'CREATE TABLE <nombre>'"));
+                    }
+                }
+            }
+        }
+
+       
+    }
     
-    return tokens;
+    return errors;
 }
 
 
@@ -662,8 +899,6 @@ private List<Token> analyzeSyntax(String text) {
         SwingUtilities.invokeLater(() -> new formm().setVisible(true));
     }
 }
-
-        
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     // End of variables declaration//GEN-END:variables

@@ -1,4 +1,6 @@
 com\mycompany\analexsin\Token.class
+com\mycompany\analexsin\Column.class
+com\mycompany\analexsin\Table.class
 com\mycompany\analexsin\SQLLexer.class
 com\mycompany\analexsin\formm.class
 com\mycompany\analexsin\formm$1.class

@@ -13,17 +13,6 @@
         <maven.compiler.target>13</maven.compiler.target>
     </properties>
     
-    <dependencies>
-    <dependency>
-        <groupId>guru.nidi</groupId>
-        <artifactId>graphviz-java</artifactId>
-        <version>0.18.1</version>
-    </dependency>
-    <dependency>
-        <groupId>org.graphviz</groupId>
-        <artifactId>graphviz-java</artifactId>
-        <version>0.18.1</version>
-    </dependency>
-</dependencies>
+    
 
 </project>
