@@ -5,7 +5,7 @@ public class Token {
     private String value;
     private int line;
     private int column;
-    private String description; // Nueva propiedad para descripción del token
+    private String description; 
     
     
 
@@ -20,10 +20,10 @@ public class Token {
     
 
     Token(String tipo, String yytext, int fila, int columna) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        throw new UnsupportedOperationException("Not supported yet."); 
     }
 
-    // Getters y setters
+    
     public String getType() {
         return type;
     }

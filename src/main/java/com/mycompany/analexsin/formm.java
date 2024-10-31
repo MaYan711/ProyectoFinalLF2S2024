@@ -3,9 +3,11 @@ package com.mycompany.analexsin;
 import javax.swing.*;
 import javax.swing.text.*;
 import java.awt.*;
+import java.io.BufferedReader;
 import java.io.File;
 import java.util.List;
 import java.io.BufferedWriter;
+import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -14,17 +16,17 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.swing.JOptionPane;
+import javax.swing.event.DocumentListener;
+
 
 public class formm extends javax.swing.JFrame {
 
     private JTextPane textArea; 
     private JTextArea lineNumberArea;
     private JLabel positionLabel;
-    private JButton analyzeButton;
-    private JButton graphButton;
-    private JButton reportButton;
-    private JButton highlightButton; 
     private JScrollPane scrollPane;
+    private JButton analyzeButton, graphButton, reportButton, highlightButton;
+    private String currentFilePath; 
 
     public formm() {
         setTitle("Editor de SQL");
@@ -42,10 +44,18 @@ public class formm extends javax.swing.JFrame {
         scrollPane = new JScrollPane(textArea);
         scrollPane.setRowHeaderView(lineNumberArea);
 
-        textArea.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
-            public void insertUpdate(javax.swing.event.DocumentEvent e) { updateLineNumbers(); }
-            public void removeUpdate(javax.swing.event.DocumentEvent e) { updateLineNumbers(); }
-            public void changedUpdate(javax.swing.event.DocumentEvent e) { updateLineNumbers(); }
+        textArea.getDocument().addDocumentListener(new DocumentListener() {
+            public void insertUpdate(javax.swing.event.DocumentEvent e) {
+                updateLineNumbers();
+            }
+
+            public void removeUpdate(javax.swing.event.DocumentEvent e) {
+                updateLineNumbers();
+            }
+
+            public void changedUpdate(javax.swing.event.DocumentEvent e) {
+                updateLineNumbers();
+            }
         });
 
         positionLabel = new JLabel("Fila 1, Columna 1");
@@ -57,7 +67,7 @@ public class formm extends javax.swing.JFrame {
         graphButton.addActionListener(e -> graphSQL());
         reportButton = new JButton("REPORTES");
         reportButton.addActionListener(e -> reportSQL());
-        highlightButton = new JButton("PINTAR");
+        highlightButton = new JButton("LEXICO");
         highlightButton.addActionListener(e -> highlightSyntax());
 
         JPanel bottomPanel = new JPanel(new BorderLayout());
@@ -70,8 +80,80 @@ public class formm extends javax.swing.JFrame {
         buttonPanel.add(highlightButton);
         bottomPanel.add(buttonPanel, BorderLayout.EAST);
 
+        // Crear el menú
+        JMenuBar menuBar = new JMenuBar();
+        JMenu fileMenu = new JMenu("Archivo");
+        
+        // Opciones de menú
+        JMenuItem newItem = new JMenuItem("Nuevo");
+        newItem.addActionListener(e -> createNewFile());
+        JMenuItem loadItem = new JMenuItem("Cargar");
+        loadItem.addActionListener(e -> loadFile());
+        JMenuItem saveItem = new JMenuItem("Guardar");
+        saveItem.addActionListener(e -> saveFile());
+        JMenuItem saveAsItem = new JMenuItem("Guardar Como");
+        saveAsItem.addActionListener(e -> saveFileAs());
+
+        fileMenu.add(newItem);
+        fileMenu.add(loadItem);
+        fileMenu.add(saveItem);
+        fileMenu.add(saveAsItem);
+        menuBar.add(fileMenu);
+        
+        setJMenuBar(menuBar); // Establecer la barra de menú
+
         getContentPane().add(scrollPane, BorderLayout.CENTER);
         getContentPane().add(bottomPanel, BorderLayout.SOUTH);
+    }
+    
+    private void createNewFile() {
+        // Limpiar el área de texto y restablecer la ruta del archivo actual
+        textArea.setText("");
+        currentFilePath = null; // No hay archivo guardado actualmente
+    }
+    
+    
+      private void loadFile() {
+        JFileChooser fileChooser = new JFileChooser();
+        int returnValue = fileChooser.showOpenDialog(this);
+        if (returnValue == JFileChooser.APPROVE_OPTION) {
+            File file = fileChooser.getSelectedFile();
+            currentFilePath = file.getPath(); // Guardar la ruta del archivo actual
+            try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+                textArea.setText(""); // Limpiar el área de texto antes de cargar
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    textArea.setText(textArea.getText() + line + "\n");
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+                JOptionPane.showMessageDialog(this, "Error al cargar el archivo.", "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        }
+    }
+    
+    
+     private void saveFile() {
+        if (currentFilePath != null) {
+            try (BufferedWriter writer = new BufferedWriter(new FileWriter(currentFilePath))) {
+                writer.write(textArea.getText());
+            } catch (IOException e) {
+                e.printStackTrace();
+                JOptionPane.showMessageDialog(this, "Error al guardar el archivo.", "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        } else {
+            saveFileAs(); // Si no hay archivo actual, usar "Guardar Como"
+        }
+    }
+    
+     private void saveFileAs() {
+        JFileChooser fileChooser = new JFileChooser();
+        int returnValue = fileChooser.showSaveDialog(this);
+        if (returnValue == JFileChooser.APPROVE_OPTION) {
+            File file = fileChooser.getSelectedFile();
+            currentFilePath = file.getPath(); // Guardar la ruta del nuevo archivo
+            saveFile(); // Llamar al método de guardar
+        }
     }
 
     private void updateLineNumbers() {
@@ -94,39 +176,64 @@ public class formm extends javax.swing.JFrame {
         }
     }
 
-    private void analyzeSQL() {
+ private void analyzeSQL() {
     String text = textArea.getText();
     String[] lines = text.split("\n");
     StringBuilder analysisResult = new StringBuilder();
 
+    boolean insideCreateTable = false; // Para detectar inicio y fin de una tabla
+    StringBuilder tableStructure = new StringBuilder(); // Acumula la estructura de CREATE TABLE
+
     for (String line : lines) {
         line = line.trim();
         if (line.isEmpty()) {
-            continue; 
+            continue;
         }
 
         try {
             if (line.toUpperCase().startsWith("CREATE DATABASE")) {
                 parseCreateDatabase(line);
                 analysisResult.append("Sentencia válida: ").append(line).append("\n");
+
             } else if (line.toUpperCase().startsWith("CREATE TABLE")) {
-                parseCreateTable(line);
-                analysisResult.append("Sentencia válida: ").append(line).append("\n");
-            } else if (line.toUpperCase().startsWith("INSERT INTO")) {
-                parseInsert(line);
-                analysisResult.append("Sentencia válida: ").append(line).append("\n");
+                insideCreateTable = true;
+                tableStructure.append(line).append(" ");
+
+            } else if (insideCreateTable) {
+                tableStructure.append(line).append(" ");
+                
+                // Verificar si se cierra la tabla con el paréntesis final
+                if (line.endsWith(");")) {
+                    parseCreateTable(tableStructure.toString().trim());
+                    insideCreateTable = false;
+                    tableStructure.setLength(0); // Limpiar para la próxima tabla
+                    analysisResult.append("Sentencia CREATE TABLE válida.\n");
+                }
+
+            } else if (line.toUpperCase().startsWith("ALTER TABLE")) {
+                parseAlterTable(line);
+                analysisResult.append("Sentencia ALTER TABLE válida: ").append(line).append("\n");
+
+            } else if (line.toUpperCase().startsWith("DROP TABLE")) {
+                parseDropTable(line);
+                analysisResult.append("Sentencia DROP TABLE válida: ").append(line).append("\n");
+
             } else if (line.toUpperCase().startsWith("SELECT")) {
                 parseSelect(line);
-                analysisResult.append("Sentencia válida: ").append(line).append("\n");
+                analysisResult.append("Sentencia SELECT válida: ").append(line).append("\n");
+
             } else if (line.toUpperCase().startsWith("UPDATE")) {
                 parseUpdate(line);
-                analysisResult.append("Sentencia válida: ").append(line).append("\n");
-            } else if (line.toUpperCase().startsWith("DELETE FROM")) {
+                analysisResult.append("Sentencia UPDATE válida: ").append(line).append("\n");
+
+            } else if (line.toUpperCase().startsWith("DELETE")) {
                 parseDelete(line);
-                analysisResult.append("Sentencia válida: ").append(line).append("\n");
+                analysisResult.append("Sentencia DELETE válida: ").append(line).append("\n");
+
             } else {
                 analysisResult.append("Sentencia no reconocida: ").append(line).append("\n");
             }
+
         } catch (Exception e) {
             analysisResult.append("Error en la sentencia: ").append(line).append("\n").append(e.getMessage()).append("\n");
         }
@@ -134,20 +241,150 @@ public class formm extends javax.swing.JFrame {
 
     JOptionPane.showMessageDialog(this, analysisResult.toString(), "Resultado del Análisis", JOptionPane.INFORMATION_MESSAGE);
 }
+  
+  
+  
+  
+  
+  private void parseInsertInto(String line) throws Exception {
+    // Valida que la estructura sea `INSERT INTO <identificador> (<columnas>) VALUES (<valores>);`
+    if (!line.matches("(?i)^INSERT INTO \\w+ \\(.+\\) VALUES \\(.+\\);?$")) {
+        throw new Exception("Error en la sintaxis de INSERT INTO. Asegúrate de usar `INSERT INTO <tabla> (<columna>, ...) VALUES (<valor>, ...);`");
+    }
+    
+}
+
+private void parseSelect(String line) throws Exception {
+    if (!line.matches("(?i)^SELECT\\s+.+\\s+FROM\\s+\\w+(\\s+[A-Z]+\\s+.*)?;$")) {
+        throw new Exception("Error en la sintaxis de SELECT. Asegúrate de usar `SELECT <columnas> FROM <tabla> [cláusulas opcionales];`");
+    }
+
+    String[] clauses = line.split("(?i)(WHERE|GROUP BY|ORDER BY|LIMIT|JOIN)");
+    
+    if (clauses.length > 0) {
+        if (!clauses[0].trim().matches("(?i)^SELECT\\s+.+\\s+FROM\\s+\\w+$")) {
+            throw new Exception("Error en la sección SELECT/FROM de la sentencia.");
+        }
+    }
+
+    for (int i = 1; i < clauses.length; i++) {
+        String clause = clauses[i].trim();
+        
+        if (clause.toUpperCase().startsWith("WHERE")) {
+            if (!clause.matches("(?i)^WHERE\\s+.+$")) {
+                throw new Exception("Error en la cláusula WHERE.");
+            }
+        } else if (clause.toUpperCase().startsWith("GROUP BY")) {
+            if (!clause.matches("(?i)^GROUP BY\\s+\\w+(\\.\\w+)?$")) {
+                throw new Exception("Error en la cláusula GROUP BY.");
+            }
+        } else if (clause.toUpperCase().startsWith("ORDER BY")) {
+            if (!clause.matches("(?i)^ORDER BY\\s+\\w+(\\.\\w+)?\\s*(ASC|DESC)?$")) {
+                throw new Exception("Error en la cláusula ORDER BY.");
+            }
+        } else if (clause.toUpperCase().startsWith("LIMIT")) {
+            if (!clause.matches("(?i)^LIMIT\\s+\\d+$")) {
+                throw new Exception("Error en la cláusula LIMIT.");
+            }
+        } else if (clause.toUpperCase().startsWith("JOIN")) {
+            if (!clause.matches("(?i)^JOIN\\s+\\w+\\s+ON\\s+\\w+\\.\\w+\\s*=\\s*\\w+\\.\\w+$")) {
+                throw new Exception("Error en la cláusula JOIN.");
+            }
+        } else {
+            throw new Exception("Cláusula no reconocida en la sentencia SELECT.");
+        }
+    }
+}
+
+
+
+
+
+private void parseCreateTable(String structure) throws Exception {
+    if (!structure.matches("(?i)^CREATE TABLE \\w+ \\(.+\\);$")) {
+        throw new Exception("Error en la sintaxis de CREATE TABLE. Asegúrate de usar `CREATE TABLE <tabla> (<columna> <tipo>, ...);`");
+    }
+    
+    String tableName = structure.split("\\s+")[2];
+    if (tableName.isEmpty()) {
+        throw new Exception("Error: Falta el nombre de la tabla.");
+    }
+    
+    String columnsDefinition = structure.substring(structure.indexOf("(") + 1, structure.lastIndexOf(")"));
+    String[] columns = columnsDefinition.split(",");
+    
+    for (String column : columns) {
+        String trimmedColumn = column.trim();
+        if (!trimmedColumn.matches("\\w+\\s+(SERIAL|INTEGER|BIGINT|VARCHAR\\(\\d+\\)|DECIMAL\\(\\d+,\\d+\\)|NUMERIC\\(\\d+,\\d+\\)|DATE|TEXT|BOOLEAN)(\\s+PRIMARY KEY|\\s+NOT NULL|\\s+UNIQUE)?")) {
+            throw new Exception("Error en la definición de columna: `" + trimmedColumn + "` no sigue una estructura válida.");
+        }
+    }
+}
+
+
+
+
 
 private void parseCreateDatabase(String line) throws Exception {
-    if (!line.matches("CREATE DATABASE [a-zA-Z_][a-zA-Z0-9_]*;")) {
-        throw new Exception("Sintaxis incorrecta para creación de base de datos.");
+    if (!line.matches("(?i)^CREATE DATABASE \\w+;$")) {
+        throw new Exception("Error en la sintaxis de CREATE DATABASE. Debe seguir la estructura `CREATE DATABASE <identificador>;`");
     }
-    
+    String dbName = line.split("\\s+")[2].replace(";", "");
+    if (dbName.isEmpty()) {
+        throw new Exception("Error: Falta el nombre de la base de datos.");
+    }
 }
 
-private void parseCreateTable(String line) throws Exception {
-    if (!line.matches("CREATE TABLE [a-zA-Z_][a-zA-Z0-9_]* \\(.*\\);")) {
-        throw new Exception("Sintaxis incorrecta para creación de tabla.");
+private void parseColumn(String column) throws Exception {
+    String columnPattern = "^[a-zA-Z_][a-zA-Z0-9_]*\\s+(SERIAL|INTEGER|BIGINT|VARCHAR\\(\\d+\\)|DECIMAL\\(\\d+,\\d+\\)|NUMERIC\\(\\d+,\\d+\\)|DATE|TEXT|BOOLEAN)(\\s+(PRIMARY KEY|NOT NULL|UNIQUE))?$";
+    if (!column.matches(columnPattern)) {
+        throw new Exception("Error en la declaración de columna. La estructura esperada es '<identificador> [Tipo_de_dato] [PRIMARY KEY | NOT NULL | UNIQUE]'.");
+    }
+}
+
+private void parseForeignKey(String line) throws Exception {
+    String foreignKeyPattern = "^CONSTRAINT\\s+[a-zA-Z_][a-zA-Z0-9_]*\\s+FOREIGN KEY\\s*\\([a-zA-Z_][a-zA-Z0-9_]*\\)\\s+REFERENCES\\s+[a-zA-Z_][a-zA-Z0-9_]*\\([a-zA-Z_][a-zA-Z0-9_]*\\)$";
+    if (!line.matches(foreignKeyPattern)) {
+        throw new Exception("Error en la declaración de llave foránea. La estructura esperada es 'CONSTRAINT <identificador> FOREIGN KEY (<identificador>) REFERENCES <identificador>(<identificador>)'.");
+    }
+}
+
+
+private void parseAlterTable(String line) throws Exception {
+    if (!line.matches("(?i)^ALTER TABLE \\w+ (ADD|DROP) COLUMN \\w+;$")) {
+        throw new Exception("Error en la sintaxis de ALTER TABLE. Asegúrate de usar `ALTER TABLE <tabla> ADD|DROP COLUMN <columna>;`");
     }
     
+    String[] tokens = line.split("\\s+");
+    String tableName = tokens[2];
+    String columnName = tokens[4];
+    
+    if (tableName.isEmpty() || columnName.isEmpty()) {
+        throw new Exception("Error: Falta el nombre de la tabla o de la columna en ALTER TABLE.");
+    }
 }
+
+
+private void parseDropTable(String line) throws Exception {
+    if (!line.matches("(?i)^DROP TABLE \\w+;$")) {
+        throw new Exception("Error en la sintaxis de DROP TABLE. Debe seguir la estructura `DROP TABLE <identificador>;`");
+    }
+    
+    String tableName = line.split("\\s+")[2].replace(";", "");
+    if (tableName.isEmpty()) {
+        throw new Exception("Error: Falta el nombre de la tabla.");
+    }
+}
+
+
+
+
+private boolean isColumnDeclaration(String line) {
+    return line.matches("^[a-zA-Z_][a-zA-Z0-9_]*\\s+(SERIAL|INTEGER|BIGINT|VARCHAR\\(\\d+\\)|DECIMAL\\(\\d+,\\d+\\)|NUMERIC\\(\\d+,\\d+\\)|DATE|TEXT|BOOLEAN)(\\s+(PRIMARY KEY|NOT NULL|UNIQUE))?$");
+}
+
+
+
 
 private void parseInsert(String line) throws Exception {
     if (!line.matches("INSERT INTO [a-zA-Z_][a-zA-Z0-9_]* \\(.*\\) VALUES \\(.*\\);")) {
@@ -156,25 +393,47 @@ private void parseInsert(String line) throws Exception {
     
 }
 
-private void parseSelect(String line) throws Exception {
-    if (!line.matches("SELECT (\\*|[a-zA-Z_][a-zA-Z0-9_]*(,\\s*[a-zA-Z_][a-zA-Z0-9_]*)*) FROM [a-zA-Z_][a-zA-Z0-9_]*( WHERE .*|);")) {
-        throw new Exception("Sintaxis incorrecta para selección.");
-    }
-    
-}
+
 
 private void parseUpdate(String line) throws Exception {
-    if (!line.matches("UPDATE [a-zA-Z_][a-zA-Z0-9_]* SET [a-zA-Z_][a-zA-Z0-9_]* = .*;")) {
-        throw new Exception("Sintaxis incorrecta para actualización.");
+    if (!line.matches("(?i)^UPDATE\\s+\\w+\\s+SET\\s+.+$")) {
+        throw new Exception("Error en la sintaxis de UPDATE. Asegúrate de usar `UPDATE <tabla> SET <columna> = [valor] [WHERE];`");
     }
-   
+
+    String[] parts = line.split("(?i)SET");
+    String setClause = parts[1].trim();
+
+    if (!setClause.matches(".+?=\\s*.+")) {
+        throw new Exception("Error en la cláusula SET. Debe tener la forma `<columna> = [valor]`.");
+    }
+
+    if (setClause.contains("WHERE")) {
+        String[] setParts = setClause.split("WHERE");
+        if (setParts.length > 1) {
+            String whereClause = setParts[1].trim();
+            if (!whereClause.isEmpty()) {
+                if (!whereClause.matches(".+")) {
+                    throw new Exception("Error en la cláusula WHERE.");
+                }
+            }
+        }
+    }
 }
 
 private void parseDelete(String line) throws Exception {
-    if (!line.matches("DELETE FROM [a-zA-Z_][a-zA-Z0-9_]*;")) {
-        throw new Exception("Sintaxis incorrecta para eliminación.");
+    if (!line.matches("(?i)^DELETE\\s+FROM\\s+\\w+(\\s+WHERE\\s+.+)?;$")) {
+        throw new Exception("Error en la sintaxis de DELETE. Asegúrate de usar `DELETE FROM <tabla> [WHERE];`");
     }
-    
+
+    if (line.toUpperCase().contains("WHERE")) {
+        String[] parts = line.split("(?i)WHERE");
+        String whereClause = parts[1].trim();
+        if (!whereClause.isEmpty()) {
+            if (!whereClause.matches(".+")) {
+                throw new Exception("Error en la cláusula WHERE.");
+            }
+        }
+    }
 }
 
 
