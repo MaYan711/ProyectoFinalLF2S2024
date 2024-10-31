@@ -18,6 +18,10 @@ import java.util.regex.Pattern;
 import javax.swing.JOptionPane;
 import javax.swing.event.DocumentListener;
 
+import guru.nidi.graphviz.engine.Graphviz;
+import guru.nidi.graphviz.model.Graph;
+import guru.nidi.graphviz.model.Factory;
+
 
 public class formm extends javax.swing.JFrame {
 
@@ -80,11 +84,11 @@ public class formm extends javax.swing.JFrame {
         buttonPanel.add(highlightButton);
         bottomPanel.add(buttonPanel, BorderLayout.EAST);
 
-        // Crear el menú
+        
         JMenuBar menuBar = new JMenuBar();
         JMenu fileMenu = new JMenu("Archivo");
         
-        // Opciones de menú
+        
         JMenuItem newItem = new JMenuItem("Nuevo");
         newItem.addActionListener(e -> createNewFile());
         JMenuItem loadItem = new JMenuItem("Cargar");
@@ -100,16 +104,15 @@ public class formm extends javax.swing.JFrame {
         fileMenu.add(saveAsItem);
         menuBar.add(fileMenu);
         
-        setJMenuBar(menuBar); // Establecer la barra de menú
+        setJMenuBar(menuBar); 
 
         getContentPane().add(scrollPane, BorderLayout.CENTER);
         getContentPane().add(bottomPanel, BorderLayout.SOUTH);
     }
     
     private void createNewFile() {
-        // Limpiar el área de texto y restablecer la ruta del archivo actual
         textArea.setText("");
-        currentFilePath = null; // No hay archivo guardado actualmente
+        currentFilePath = null; 
     }
     
     
@@ -118,9 +121,9 @@ public class formm extends javax.swing.JFrame {
         int returnValue = fileChooser.showOpenDialog(this);
         if (returnValue == JFileChooser.APPROVE_OPTION) {
             File file = fileChooser.getSelectedFile();
-            currentFilePath = file.getPath(); // Guardar la ruta del archivo actual
+            currentFilePath = file.getPath();
             try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
-                textArea.setText(""); // Limpiar el área de texto antes de cargar
+                textArea.setText(""); 
                 String line;
                 while ((line = reader.readLine()) != null) {
                     textArea.setText(textArea.getText() + line + "\n");
@@ -142,7 +145,7 @@ public class formm extends javax.swing.JFrame {
                 JOptionPane.showMessageDialog(this, "Error al guardar el archivo.", "Error", JOptionPane.ERROR_MESSAGE);
             }
         } else {
-            saveFileAs(); // Si no hay archivo actual, usar "Guardar Como"
+            saveFileAs(); 
         }
     }
     
@@ -151,8 +154,8 @@ public class formm extends javax.swing.JFrame {
         int returnValue = fileChooser.showSaveDialog(this);
         if (returnValue == JFileChooser.APPROVE_OPTION) {
             File file = fileChooser.getSelectedFile();
-            currentFilePath = file.getPath(); // Guardar la ruta del nuevo archivo
-            saveFile(); // Llamar al método de guardar
+            currentFilePath = file.getPath(); 
+            saveFile(); 
         }
     }
 
@@ -181,8 +184,8 @@ public class formm extends javax.swing.JFrame {
     String[] lines = text.split("\n");
     StringBuilder analysisResult = new StringBuilder();
 
-    boolean insideCreateTable = false; // Para detectar inicio y fin de una tabla
-    StringBuilder tableStructure = new StringBuilder(); // Acumula la estructura de CREATE TABLE
+    boolean insideCreateTable = false; 
+    StringBuilder tableStructure = new StringBuilder(); 
 
     for (String line : lines) {
         line = line.trim();
@@ -202,11 +205,11 @@ public class formm extends javax.swing.JFrame {
             } else if (insideCreateTable) {
                 tableStructure.append(line).append(" ");
                 
-                // Verificar si se cierra la tabla con el paréntesis final
+                
                 if (line.endsWith(");")) {
                     parseCreateTable(tableStructure.toString().trim());
                     insideCreateTable = false;
-                    tableStructure.setLength(0); // Limpiar para la próxima tabla
+                    tableStructure.setLength(0);
                     analysisResult.append("Sentencia CREATE TABLE válida.\n");
                 }
 
@@ -247,7 +250,6 @@ public class formm extends javax.swing.JFrame {
   
   
   private void parseInsertInto(String line) throws Exception {
-    // Valida que la estructura sea `INSERT INTO <identificador> (<columnas>) VALUES (<valores>);`
     if (!line.matches("(?i)^INSERT INTO \\w+ \\(.+\\) VALUES \\(.+\\);?$")) {
         throw new Exception("Error en la sintaxis de INSERT INTO. Asegúrate de usar `INSERT INTO <tabla> (<columna>, ...) VALUES (<valor>, ...);`");
     }
